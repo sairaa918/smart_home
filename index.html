@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Light up the house!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-top: #141a52;
+    --sky-bottom: #3a2e7a;
+    --roof: #6c3fc5;
+    --wall: #2a2f73;
+    --wall-edge: #4b50a8;
+    --ink: #f5f3ff;
+    --ink-soft: #c9c6ee;
+    --button-ink: #17173f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    font-family: "Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(2px 2px at 12% 18%, #fff 50%, transparent 52%),
+      radial-gradient(2px 2px at 28% 8%, #fff 50%, transparent 52%),
+      radial-gradient(3px 3px at 46% 14%, #ffe9a8 50%, transparent 52%),
+      radial-gradient(2px 2px at 63% 6%, #fff 50%, transparent 52%),
+      radial-gradient(2px 2px at 78% 20%, #fff 50%, transparent 52%),
+      radial-gradient(3px 3px at 90% 10%, #ffe9a8 50%, transparent 52%),
+      radial-gradient(2px 2px at 7% 40%, #fff 50%, transparent 52%),
+      radial-gradient(2px 2px at 94% 44%, #fff 50%, transparent 52%),
+      linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+    background-attachment: fixed;
+    padding: 20px 16px 48px;
+    padding-top: max(20px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(48px, env(safe-area-inset-bottom, 0px));
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; position: relative; }
+  .moon { position: absolute; right: 4px; top: 0; font-size: 44px; line-height: 1; }
+
+  h1 { font-size: clamp(2rem, 6vw, 3.4rem); line-height: 1.05; margin: 8px 0 8px; font-weight: 700; max-width: 14ch; }
+  .sub { margin: 0 0 16px; color: var(--ink-soft); font-size: 1.1rem; max-width: 46ch; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px; font-size: .95rem; font-weight: 500;
+    background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.18);
+  }
+  .chip i { width: 10px; height: 10px; border-radius: 50%; background: #888; display: inline-block; }
+  .chip.ok i { background: #39e37a; box-shadow: 0 0 8px #39e37a; }
+  .chip.bad i { background: #ff6b6b; }
+  .chip.wait i { background: #ffd21f; }
+
+  .setup {
+    display: none; margin: 0 0 20px; padding: 14px 16px; border-radius: 16px;
+    background: #fff3c4; color: #3b2f00; font-weight: 500; line-height: 1.4;
+  }
+  .setup code { background: rgba(0,0,0,.08); padding: 1px 6px; border-radius: 6px; }
+
+  /* ---------- the house ---------- */
+  .roof {
+    height: clamp(70px, 14vw, 130px);
+    background: var(--roof);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    margin: 0 -12px -2px;
+  }
+  .rooms {
+    display: grid; grid-template-columns: 1fr; gap: 10px;
+    background: var(--wall-edge); padding: 10px; border-radius: 6px 6px 18px 18px;
+  }
+  @media (min-width: 760px) { .rooms { grid-template-columns: repeat(3, 1fr); } }
+
+  .room {
+    --glow: #fff; --rgb: 255,255,255;
+    position: relative; overflow: hidden;
+    border-radius: 12px; padding: 0 16px 20px; text-align: center;
+    background: var(--wall);
+    transition: background .35s ease, box-shadow .35s ease;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .room.on {
+    background:
+      radial-gradient(circle at 50% 24%, rgba(var(--rgb), .42), rgba(var(--rgb), .10) 62%),
+      var(--wall);
+    box-shadow: inset 0 0 50px rgba(var(--rgb), .25);
+  }
+
+  .bulb { width: 92px; height: 129px; display: block; overflow: visible; }
+  .bulb .cord { stroke: #8c90d8; stroke-width: 3; }
+  .bulb .cap { fill: #8c90d8; }
+  .bulb .glass { fill: #3a3f86; stroke: #8c90d8; stroke-width: 3; transition: fill .3s ease, filter .3s ease; }
+  .bulb .filament { fill: none; stroke: #6c71c0; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke .3s ease; }
+  .room.on .glass { fill: var(--glow); stroke: var(--glow); filter: drop-shadow(0 0 16px var(--glow)) drop-shadow(0 0 34px var(--glow)); }
+  .room.on .filament { stroke: #fff; }
+
+  .bed { font-size: 58px; line-height: 1; margin-top: 4px; filter: brightness(.55) saturate(.7); transition: filter .35s ease; }
+  .room.on .bed { filter: none; }
+
+  .room h2 { margin: 8px 0 0; font-size: 1.6rem; font-weight: 700; }
+  .room .kind { margin: 2px 0 2px; color: var(--ink-soft); font-size: 1.05rem; }
+  .room .state { margin: 0 0 14px; font-weight: 600; font-size: 1rem; min-height: 1.4em; }
+
+  .switch {
+    font: inherit; font-weight: 700; font-size: 1.25rem; cursor: pointer;
+    min-height: 56px; width: 100%; max-width: 240px; border-radius: 999px;
+    border: 3px solid var(--glow); background: var(--glow); color: var(--button-ink);
+    transition: transform .12s ease, background .2s ease, color .2s ease;
+  }
+  .switch:active { transform: scale(.95); }
+  .room.on .switch { background: transparent; color: var(--ink); }
+  button:focus-visible { outline: 4px solid #fff; outline-offset: 3px; }
+
+  /* ---------- bottom controls ---------- */
+  .footer { margin-top: 26px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; }
+  .count { font-size: 1.5rem; font-weight: 700; margin: 0; flex: 1 1 260px; }
+  .all { display: flex; gap: 10px; flex-wrap: wrap; }
+  .all button {
+    font: inherit; font-weight: 600; font-size: 1.05rem; cursor: pointer; min-height: 48px;
+    padding: 0 22px; border-radius: 999px; color: var(--ink);
+    background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.35);
+  }
+  .all button:active { transform: scale(.95); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 140%);
+    background: #ffefef; color: #5c1111; font-weight: 600; padding: 12px 18px; border-radius: 14px;
+    max-width: calc(100% - 32px); transition: transform .3s ease; z-index: 20;
+  }
+  .toast.show { transform: translate(-50%, 0); }
+
+  .pop {
+    position: fixed; bottom: -40px; font-size: 34px; pointer-events: none; z-index: 30;
+    animation: rise 1.7s ease-out forwards;
+  }
+  @keyframes rise { to { transform: translateY(-85vh) rotate(40deg); opacity: 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .pop { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="moon" aria-hidden="true">🌙</div>
+  <h1>Light up the house!</h1>
+  <p class="sub">Tap a room to switch its light. You can also press the real button on the board and watch this page change.</p>
+
+  <div class="chips">
+    <span class="chip wait" id="netChip"><i></i><span>Connecting to the internet database…</span></span>
+    <span class="chip wait" id="boardChip"><i></i><span>Looking for the board…</span></span>
+  </div>
+
+  <div class="setup" id="setup">
+    Almost ready! Open this file in a text editor and replace <code>YOUR-PROJECT</code> in the line that starts with
+    <code>const DB_URL</code> with your own Firebase Realtime Database address.
+  </div>
+
+  <div class="roof" aria-hidden="true"></div>
+  <main class="rooms" id="rooms"></main>
+
+  <div class="footer">
+    <p class="count" id="count" aria-live="polite">Tap a room to begin!</p>
+    <div class="all">
+      <button id="allOn">All lights on</button>
+      <button id="allOff">All lights off</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+  // ====== EDIT THIS: your Firebase Realtime Database URL (no slash at the end) ======
+  const DB_URL = "https://home-buddy-60621-default-rtdb.firebaseio.com";
+  // ==================================================================================
+
+  const BASE = DB_URL.replace(/\/+$/, "");
+  const ROOMS = [
+    { id: "led1", name: "Bedroom 1", kind: "White light",  color: "#fff6dc", rgb: "255,246,220" },
+    { id: "led2", name: "Bedroom 2", kind: "Green light",  color: "#39e37a", rgb: "57,227,122" },
+    { id: "led3", name: "Bedroom 3", kind: "Yellow light", color: "#ffd21f", rgb: "255,210,31" }
+  ];
+
+  let db = {};
+  let prevCount = 0;
+  let lastUptime, lastSeen = 0;
+  const startedAt = Date.now();
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- build the rooms ----------
+  const bulbSVG = `
+    <svg class="bulb" viewBox="0 0 100 140" aria-hidden="true">
+      <line class="cord" x1="50" y1="0" x2="50" y2="20"/>
+      <rect class="cap" x="36" y="20" width="28" height="26" rx="5"/>
+      <path class="glass" d="M38 46 H62 C62 58 62 62 72 76 C88 96 80 128 50 132 C20 128 12 96 28 76 C38 62 38 58 38 46 Z"/>
+      <path class="filament" d="M43 108 V90 L50 82 L57 90 V108"/>
+    </svg>`;
+
+  const roomEls = {};
+  ROOMS.forEach((r) => {
+    const el = document.createElement("article");
+    el.className = "room";
+    el.style.setProperty("--glow", r.color);
+    el.style.setProperty("--rgb", r.rgb);
+    el.innerHTML = `
+      ${bulbSVG}
+      <div class="bed" aria-hidden="true">🛏️</div>
+      <h2>${r.name}</h2>
+      <p class="kind">${r.kind}</p>
+      <p class="state"></p>
+      <button class="switch" aria-pressed="false"></button>`;
+    el.querySelector(".switch").addEventListener("click", () => {
+      const next = !isOn(r.id);
+      sound(next);
+      setLeds({ [r.id]: next });
+    });
+    $("rooms").appendChild(el);
+    roomEls[r.id] = el;
+  });
+
+  $("allOn").addEventListener("click", () => { sound(true); setLeds({ led1: true, led2: true, led3: true }); });
+  $("allOff").addEventListener("click", () => { sound(false); setLeds({ led1: false, led2: false, led3: false }); });
+
+  // ---------- state helpers ----------
+  function isOn(id) { return !!(db.leds && db.leds[id] === true); }
+
+  function render() {
+    let n = 0;
+    ROOMS.forEach((r) => {
+      const on = isOn(r.id);
+      if (on) n++;
+      const el = roomEls[r.id];
+      el.classList.toggle("on", on);
+      el.querySelector(".state").textContent = on ? "The light is on" : "The light is off";
+      const b = el.querySelector(".switch");
+      b.textContent = on ? "Turn off" : "Turn on";
+      b.setAttribute("aria-pressed", on);
+      b.setAttribute("aria-label", `${r.name} ${r.kind}: ${on ? "turn off" : "turn on"}`);
+    });
+    $("count").textContent =
+      n === 0 ? "All lights are off. Tap a room!" :
+      n === 3 ? "The whole house is glowing! 🎉" :
+      `${n} of 3 lights are on`;
+    if (n === 3 && prevCount < 3) burst();
+    prevCount = n;
+  }
+
+  // ---------- Firebase: write ----------
+  async function setLeds(changes) {
+    db.leds = db.leds || {};
+    Object.assign(db.leds, changes);
+    render();
+    try {
+      const res = await fetch(`${BASE}/leds.json`, { method: "PATCH", body: JSON.stringify(changes) });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+    } catch (err) {
+      toast("Could not save the change. Check the internet and the Firebase address, then try again.");
+    }
+  }
+
+  // ---------- Firebase: live updates ----------
+  function setPath(path, data) {
+    const parts = path.split("/").filter(Boolean);
+    if (!parts.length) { db = data && typeof data === "object" ? data : {}; return; }
+    let o = db;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (typeof o[parts[i]] !== "object" || o[parts[i]] === null) o[parts[i]] = {};
+      o = o[parts[i]];
+    }
+    const k = parts[parts.length - 1];
+    if (data === null) delete o[k]; else o[k] = data;
+  }
+  function applyPatch(path, data) {
+    const base = path.replace(/\/+$/, "");
+    for (const k in data) setPath(base + "/" + k, data[k]);
+  }
+  function onEvent(type, e) {
+    const msg = JSON.parse(e.data);
+    if (type === "put") setPath(msg.path, msg.data); else applyPatch(msg.path, msg.data || {});
+    const up = db.device && db.device.uptimeSec;
+    if (up !== undefined && up !== lastUptime) {
+      if (lastUptime !== undefined) lastSeen = Date.now();
+      lastUptime = up;
+    }
+    render();
+    updateChips();
+  }
+
+  function connect() {
+    if (BASE.includes("YOUR-PROJECT")) {
+      $("setup").style.display = "block";
+      setChip("netChip", "bad", "Not connected: Firebase address needed");
+      return;
+    }
+    const es = new EventSource(`${BASE}/.json`);
+    es.addEventListener("put", (e) => onEvent("put", e));
+    es.addEventListener("patch", (e) => onEvent("patch", e));
+    es.addEventListener("open", () => setChip("netChip", "ok", "Connected to the internet database"));
+    es.addEventListener("error", () => setChip("netChip", "bad", "Lost connection. Trying again…"));
+  }
+
+  // ---------- status chips ----------
+  function setChip(id, cls, text) {
+    const c = $(id);
+    c.className = "chip " + cls;
+    c.lastElementChild.textContent = text;
+  }
+  function updateChips() {
+    if (BASE.includes("YOUR-PROJECT")) return;
+    const age = Date.now() - lastSeen;
+    if (lastSeen && age < 30000) setChip("boardChip", "ok", "Board is online");
+    else if (!lastSeen && Date.now() - startedAt < 20000) setChip("boardChip", "wait", "Looking for the board…");
+    else setChip("boardChip", "bad", "Board is not answering. Is it powered and on Wi-Fi?");
+  }
+  setInterval(updateChips, 2000);
+
+  // ---------- fun bits ----------
+  function toast(text) {
+    const t = $("toast");
+    t.textContent = text;
+    t.classList.add("show");
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => t.classList.remove("show"), 4500);
+  }
+  function burst() {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const icons = ["⭐", "✨", "🎉", "💡", "🌟"];
+    for (let i = 0; i < 16; i++) {
+      const s = document.createElement("span");
+      s.className = "pop";
+      s.textContent = icons[i % icons.length];
+      s.style.left = Math.random() * 92 + "vw";
+      s.style.animationDelay = Math.random() * 0.4 + "s";
+      s.addEventListener("animationend", () => s.remove());
+      document.body.appendChild(s);
+    }
+  }
+  let audio;
+  function sound(on) {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = "sine";
+      o.frequency.setValueAtTime(on ? 520 : 340, audio.currentTime);
+      o.frequency.exponentialRampToValueAtTime(on ? 880 : 220, audio.currentTime + 0.12);
+      g.gain.setValueAtTime(0.15, audio.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + 0.18);
+      o.connect(g); g.connect(audio.destination);
+      o.start(); o.stop(audio.currentTime + 0.2);
+    } catch (e) { /* sound is optional */ }
+  }
+
+  render();
+  connect();
+</script>
+</body>
+</html>
